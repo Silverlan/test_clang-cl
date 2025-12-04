@@ -13,6 +13,8 @@ add_executable(sample src/main.cpp)
 message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 
+target_compile_features(sample PRIVATE cxx_std_23)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message(STATUS "Detected Clang family compiler (this may be clang-cl on Windows)")
 endif()

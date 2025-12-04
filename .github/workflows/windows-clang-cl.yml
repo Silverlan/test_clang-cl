@@ -14,6 +14,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+
       - name: Install LLVM (clang/clang-cl) via Chocolatey
         shell: cmd
         run: choco install -y llvm || choco install -y llvm --no-progress
