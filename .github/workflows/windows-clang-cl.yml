@@ -74,7 +74,8 @@ jobs:
       - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
         shell: bash
         run: |
-          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe -DCMAKE_MAKE_PROGRAM=ninja.exe
+          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe
+          # -DCMAKE_MAKE_PROGRAM=ninja.exe
 
       - name: Build
         shell: bash
