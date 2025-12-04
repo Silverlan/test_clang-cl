@@ -71,14 +71,16 @@ jobs:
           command -v clang-cl || true
           clang-cl --version || true
 
-      - name: Install Ninja
-        shell: cmd
-        run: choco install -y ninja || choco install -y ninja --no-progress
-
       - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
         shell: bash
         run: |
-          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe -DCMAKE_MAKE_PROGRAM=ninja.exe
+          NINJA_PATH="$(command -v ninja || true)"
+          if [ -z "$NINJA_PATH" ]; then
+            echo "ninja not found on PATH"
+            exit 1
+          fi
+          echo "Using ninja at: $NINJA_PATH"
+          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe -DCMAKE_MAKE_PROGRAM=$NINJA_PATH
 
       - name: Build
         shell: bash
