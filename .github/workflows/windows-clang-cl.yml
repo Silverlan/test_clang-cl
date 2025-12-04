@@ -17,6 +17,24 @@ jobs:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v2
 
+      - name: Download and extract LLVM release (GitHub)
+        shell: powershell
+        run: |
+          $url = 'https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar.xz'
+          $dest = 'clang.tar.xz'
+          Write-Host "Downloading $url to $dest"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          Write-Host "Extracting $dest (requires 7z present on runner)"
+          # 7z will first extract the .tar from the .tar.xz, then extract the tar contents.
+          & 7z x $dest -y
+          $tar = 'clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar'
+          & 7z x $tar -y -oclang
+          Write-Host "LLVM extracted to: $(Resolve-Path .\clang)"
+          # Add extracted clang bin to PATH for the remainder of the job
+          $clangBin = (Resolve-Path .\clang\clang+llvm-21.1.7-x86_64-pc-windows-msvc\bin).Path
+          Write-Host "Adding $clangBin to PATH"
+          $env:PATH = "$clangBin;$env:PATH"
+
       - name: Install LLVM (clang/clang-cl) via Chocolatey
         shell: cmd
         run: choco install -y llvm || choco install -y llvm --no-progress
