@@ -75,20 +75,15 @@ jobs:
           fi
 
           clangBin="$(pwd)/clang/bin"
-          echo "LLVM bin path: $clangBin"
-          echo "Adding $clangBin to PATH for this job"
-          echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
+          #echo "LLVM bin path: $clangBin"
+          #echo "Adding $clangBin to PATH for this job"
+          #echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
 
       - name: Show clang-cl version
         shell: bash
         run: |
           command -v clang-cl || true
           clang-cl --version || true
-
-      - name: Setup Visual Studio Developer Prompt
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
 
       - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
         shell: bash
