@@ -14,51 +14,50 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-
-      - name: Download and extract LLVM release (GitHub)
-        shell: powershell
-        run: |
-          $url = 'https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar.xz'
-          $dest = 'clang.tar.xz'
-          Write-Host "Downloading $url to $dest"
-          Invoke-WebRequest -Uri $url -OutFile $dest
-          Write-Host "Extracting $dest (requires 7z present on runner)"
-          # 7z will first extract the .tar from the .tar.xz, then extract the tar contents.
-          & 7z x $dest -y
-          $tar = 'clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar'
-          & 7z x $tar -y -oclang
-          Write-Host "LLVM extracted to: $(Resolve-Path .\clang)"
-          # Add extracted clang bin to PATH for the remainder of the job
-          $clangBin = (Resolve-Path .\clang\clang+llvm-21.1.7-x86_64-pc-windows-msvc\bin).Path
-          Write-Host "Adding $clangBin to PATH"
-          $env:PATH = "$clangBin;$env:PATH"
-
       - name: Install LLVM (clang/clang-cl) via Chocolatey
         shell: cmd
         run: choco install -y llvm || choco install -y llvm --no-progress
 
-      - name: Show clang-cl version
-        shell: powershell
+      - name: Download and extract LLVM release (GitHub)
+        shell: bash
         run: |
-          Get-Command clang-cl -ErrorAction SilentlyContinue
-          clang-cl --version
+          url="https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar.xz"
+          dest=clang.tar.xz
+          echo "Downloading $url to $dest"
+          curl -L -o "$dest" "$url"
+
+          echo "Extracting $dest (requires 7z present on runner)"
+          # 7z will first extract the .tar from the .tar.xz, then extract the tar contents.
+          7z x "$dest" -y
+          tarfile="clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar"
+          7z x "$tarfile" -y -oclang
+
+          echo "LLVM extracted to: $(pwd)/clang"
+          clangBin="$(pwd)/clang/clang+llvm-21.1.7-x86_64-pc-windows-msvc/bin"
+          echo "Adding $clangBin to PATH for this step and subsequent steps"
+          export PATH="$clangBin:$PATH"
+          # Persist to subsequent steps
+          echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
+
+      - name: Show clang-cl version
+        shell: bash
+        run: |
+          command -v clang-cl || true
+          clang-cl --version || true
 
       - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
-        shell: powershell
+        shell: bash
         run: |
           # Use the Visual Studio generator and request the ClangCL toolset.
           # Adjust generator name/architecture if you target another VS version or architecture.
-          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe -DCMAKE_MAKE_PROGRAM=ninja.exe
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        shell: powershell
+        shell: bash
         run: |
           cmake --build build --config Release -- /m
 
       - name: Run executable (Release)
-        shell: powershell
+        shell: bash
         run: |
-          .\build\Release\sample.exe
-  
+          ./build/Release/sample.exe
