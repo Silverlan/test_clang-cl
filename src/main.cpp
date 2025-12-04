@@ -1,4 +1,4 @@
-#include <iostream>
+import std;
 
 int main() {
 #ifdef __clang__

@@ -40,3 +40,4 @@ jobs:
         shell: powershell
         run: |
           .\build\Release\sample.exe
+  
