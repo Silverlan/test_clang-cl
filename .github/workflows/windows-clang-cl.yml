@@ -1,53 +1,45 @@
 name: Build (clang-cl on Windows)
 
-
 on:
-push:
-branches: [ main ]
-pull_request:
-branches: [ main ]
-
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-build:
-runs-on: windows-latest
+  build:
+    runs-on: windows-latest
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-steps:
-- name: Checkout repository
-uses: actions/checkout@v4
+      - name: Install LLVM (clang/clang-cl) via Chocolatey
+        shell: powershell
+        run: |
+          choco install -y llvm || choco install -y llvm --no-progress
+          # ensure LLVM is on PATH (choco normally does this)
+          RefreshEnv
 
+      - name: Show clang-cl version
+        shell: powershell
+        run: |
+          Get-Command clang-cl -ErrorAction SilentlyContinue
+          clang-cl --version
 
-- name: Install LLVM (clang/clang-cl) via Chocolatey
-shell: powershell
-run: |
-choco install -y llvm || choco install -y llvm --no-progress
-# ensure LLVM is on PATH (choco normally does this)
-RefreshEnv
+      - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
+        shell: powershell
+        run: |
+          # Use the Visual Studio generator and request the ClangCL toolset.
+          # Adjust generator name/architecture if you target another VS version or architecture.
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Release
 
+      - name: Build
+        shell: powershell
+        run: |
+          cmake --build build --config Release -- /m
 
-- name: Show clang-cl version
-shell: powershell
-run: |
-Get-Command clang-cl -ErrorAction SilentlyContinue
-clang-cl --version
-
-
-- name: Configure with CMake (Visual Studio generator + ClangCL toolset)
-shell: powershell
-run: |
-# Use the Visual Studio generator and request the ClangCL toolset.
-# Adjust generator name/architecture if you target another VS version or architecture.
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Release
-
-
-- name: Build
-shell: powershell
-run: |
-cmake --build build --config Release -- /m
-
-
-- name: Run executable (Release)
-shell: powershell
-run: |
-.\build\Release\sample.exe
+      - name: Run executable (Release)
+        shell: powershell
+        run: |
+          .\build\Release\sample.exe
