@@ -15,11 +15,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install LLVM (clang/clang-cl) via Chocolatey
-        shell: powershell
-        run: |
-          choco install -y llvm || choco install -y llvm --no-progress
-          # ensure LLVM is on PATH (choco normally does this)
-          RefreshEnv
+        shell: cmd
+        run: choco install -y llvm || choco install -y llvm --no-progress
 
       - name: Show clang-cl version
         shell: powershell
