@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(sample LANGUAGES CXX)
 
 message(STATUS "CMake version: ${CMAKE_VERSION}")
 # Required for "import std;" as long as its experimental in CMake
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_MODULE_STD 1)
+
+project(sample LANGUAGES CXX)
 
 add_executable(sample src/main.cpp)
 
