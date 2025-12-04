@@ -10,6 +10,9 @@ project(sample LANGUAGES CXX)
 
 add_executable(sample src/main.cpp)
 
+target_compile_options(sample PUBLIC -stdlib=libstdc++)
+target_link_options(sample PUBLIC -stdlib=libstdc++)
+
 # Helpful status messages so you can see which compiler/flags are being used.
 message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
