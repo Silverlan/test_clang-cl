@@ -71,6 +71,10 @@ jobs:
           command -v clang-cl || true
           clang-cl --version || true
 
+      - name: Install Ninja
+        shell: cmd
+        run: choco install -y ninja || choco install -y ninja --no-progress
+
       - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
         shell: bash
         run: |
