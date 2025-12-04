@@ -27,43 +27,58 @@ jobs:
           echo "Downloading $url to $dest"
           curl -L -o "$dest" "$url"
 
-          echo "Extracting $dest"
+          echo "Preparing ./clang directory"
+          rm -rf clang
+          mkdir -p clang
 
           # Prefer tar if it supports xz; fallback to 7z extraction and handle variable tar names
           if command -v tar >/dev/null 2>&1 && tar --version 2>&1 | grep -qi xz; then
-            echo "Using tar -xJf to extract"
-            tar -xJf "$dest"
-            # get the top-level directory extracted (first member path)
-            topdir=$(tar -tf "$dest" | head -n1 | cut -f1 -d"/")
-            clangBin="$(pwd)/$topdir/bin"
-
+            echo "Using tar -xJf to extract into ./clang (stripping top-level directory)"
+            # Strip the top-level directory so contents go directly into ./clang
+            tar -xJf "$dest" -C clang --strip-components=1
           else
             echo "tar with xz support not available; using 7z fallback"
-            7z x "$dest" -y
-            # locate the .tar that was produced (if any)
-            tarfile=$(ls *.tar 2>/dev/null | head -n1 || true)
+            tmpdir=$(mktemp -d)
+            echo "Extracting $dest into temporary dir $tmpdir"
+            # extract the .xz container into tmpdir (this usually yields a .tar file)
+            7z x "$dest" -y -o"$tmpdir" >/dev/null
+
+            # find a .tar produced or a clang+llvm-* directory inside tmpdir
+            tarfile=$(find "$tmpdir" -maxdepth 1 -type f -name "*.tar" -print -quit || true)
             if [ -n "$tarfile" ]; then
-              echo "Found tarfile: $tarfile - extracting"
-              7z x "$tarfile" -y -oclang
-              # find the extracted clang+llvm directory under ./clang
-              topdir=$(ls -d clang/clang+llvm-* 2>/dev/null | head -n1 | sed -e 's#clang/##')
-              clangBin="$(pwd)/clang/$topdir/bin"
-            else
-              # maybe 7z already extracted directory directly
-              topdir=$(ls -d clang+llvm-* 2>/dev/null | head -n1 || true)
-              if [ -n "$topdir" ]; then
-                clangBin="$(pwd)/$topdir/bin"
-              else
-                echo "ERROR: could not locate extracted files"
-                ls -la || true
-                exit 2
-              fi
+              echo "Found intermediate tarfile: $tarfile — extracting into $tmpdir"
+              7z x "$tarfile" -y -o"$tmpdir" >/dev/null
             fi
+
+            # locate the extracted clang+llvm top-level directory (could be directly under tmpdir)
+            extracted_topdir=$(find "$tmpdir" -maxdepth 1 -type d -name "clang+llvm-*" -print -quit || true)
+
+            if [ -n "$extracted_topdir" ]; then
+              echo "Moving contents of $extracted_topdir into ./clang"
+              # move contents (not the top-level dir itself) into ./clang
+              mv "$extracted_topdir"/* clang/
+            else
+              # maybe 7z already extracted files directly (no wrapping dir) -> move all into clang
+              echo "No single top-level clang+llvm-* dir found; moving all files from $tmpdir into ./clang"
+              mv "$tmpdir"/* clang/ || true
+            fi
+
+            # cleanup
+            rm -rf "$tmpdir"
           fi
 
+          # final sanity check
+          if [ ! -d clang/bin ]; then
+            echo "ERROR: clang/bin not found after extraction"
+            ls -la clang || true
+            exit 2
+          fi
+
+          clangBin="$(pwd)/clang/bin"
           echo "LLVM bin path: $clangBin"
           echo "Adding $clangBin to PATH for this job"
           echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
+
 
       - name: Show clang-cl version
         shell: bash
@@ -80,7 +95,7 @@ jobs:
             exit 1
           fi
           echo "Using ninja at: $NINJA_PATH"
-          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang.exe -DCMAKE_CXX_COMPILER=clang++.exe -DCMAKE_MAKE_PROGRAM=$NINJA_PATH
+          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$(pwd)/clang/bin/clang.exe -DCMAKE_CXX_COMPILER=$(pwd)/clang/bin/clang++.exe -DCMAKE_MAKE_PROGRAM=$NINJA_PATH
 
       - name: Build
         shell: bash
