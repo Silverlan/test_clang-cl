@@ -21,22 +21,48 @@ jobs:
       - name: Download and extract LLVM release (GitHub)
         shell: bash
         run: |
+          set -euo pipefail
           url="https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar.xz"
           dest=clang.tar.xz
           echo "Downloading $url to $dest"
           curl -L -o "$dest" "$url"
 
-          echo "Extracting $dest (requires 7z present on runner)"
-          # 7z will first extract the .tar from the .tar.xz, then extract the tar contents.
-          7z x "$dest" -y
-          tarfile="clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar"
-          7z x "$tarfile" -y -oclang
+          echo "Extracting $dest"
 
-          echo "LLVM extracted to: $(pwd)/clang"
-          clangBin="$(pwd)/clang/clang+llvm-21.1.7-x86_64-pc-windows-msvc/bin"
-          echo "Adding $clangBin to PATH for this step and subsequent steps"
-          export PATH="$clangBin:$PATH"
-          # Persist to subsequent steps
+          # Prefer tar if it supports xz; fallback to 7z extraction and handle variable tar names
+          if command -v tar >/dev/null 2>&1 && tar --version 2>&1 | grep -qi xz; then
+            echo "Using tar -xJf to extract"
+            tar -xJf "$dest"
+            # get the top-level directory extracted (first member path)
+            topdir=$(tar -tf "$dest" | head -n1 | cut -f1 -d"/")
+            clangBin="$(pwd)/$topdir/bin"
+
+          else
+            echo "tar with xz support not available; using 7z fallback"
+            7z x "$dest" -y
+            # locate the .tar that was produced (if any)
+            tarfile=$(ls *.tar 2>/dev/null | head -n1 || true)
+            if [ -n "$tarfile" ]; then
+              echo "Found tarfile: $tarfile - extracting"
+              7z x "$tarfile" -y -oclang
+              # find the extracted clang+llvm directory under ./clang
+              topdir=$(ls -d clang/clang+llvm-* 2>/dev/null | head -n1 | sed -e 's#clang/##')
+              clangBin="$(pwd)/clang/$topdir/bin"
+            else
+              # maybe 7z already extracted directory directly
+              topdir=$(ls -d clang+llvm-* 2>/dev/null | head -n1 || true)
+              if [ -n "$topdir" ]; then
+                clangBin="$(pwd)/$topdir/bin"
+              else
+                echo "ERROR: could not locate extracted files"
+                ls -la || true
+                exit 2
+              fi
+            fi
+          fi
+
+          echo "LLVM bin path: $clangBin"
+          echo "Adding $clangBin to PATH for this job"
           echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
 
       - name: Show clang-cl version
