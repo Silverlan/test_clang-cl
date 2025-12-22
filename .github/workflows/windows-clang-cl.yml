@@ -32,17 +32,14 @@ jobs:
         shell: bash
         run: |
           root=$PWD
-          cd "test_clang-cl"
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -S .. -DCMAKE_INSTALL_PREFIX:PATH=../install -DCMAKE_C_COMPILER="$root/llvm/bin/clang.exe" -DCMAKE_CXX_COMPILER="$root/llvm/bin/clang++.exe" -DCMAKE_CXX_SCAN_FOR_MODULES=1
 
       - name: Build
         shell: bash
         run: |
-          cd "test_clang-cl"
           cmake --build .
 
       - name: Run executable (Release)
         shell: bash
         run: |
-          cd "test_clang-cl"
           ./build/Release/sample.exe
