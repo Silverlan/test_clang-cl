@@ -17,6 +17,12 @@ jobs:
       - name: actions-setup-cmake
         uses: jwlawson/actions-setup-cmake@v2.0.2
 
+      - name: Setup Visual Studio Developer Prompt
+        if: ${{ runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
       - name: Download LLVM
         shell: bash
         run: |
