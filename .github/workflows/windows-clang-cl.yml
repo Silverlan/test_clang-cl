@@ -27,6 +27,11 @@ jobs:
           # $GITHUB_WORKSPACE is the absolute path to your current directory
           echo "$GITHUB_WORKSPACE/cmake.git-Windows-X64/bin" >> $GITHUB_PATH
 
+      - name: Print CMake Version
+        shell: bash
+        run: |
+          cmake --version
+        
       - name: Setup Visual Studio Developer Prompt
         if: ${{ runner.os == 'Windows' }}
         uses: ilammy/msvc-dev-cmd@v1
