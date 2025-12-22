@@ -14,97 +14,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install LLVM (clang/clang-cl) via Chocolatey
-        shell: cmd
-        run: choco install -y llvm || choco install -y llvm --no-progress
-
-      - name: Download and extract LLVM release (GitHub)
+      - name: Download LLVM
         shell: bash
         run: |
-          set -euo pipefail
-          url="https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.7/clang+llvm-21.1.7-x86_64-pc-windows-msvc.tar.xz"
-          dest=clang.tar.xz
-          echo "Downloading $url to $dest"
-          curl -L -o "$dest" "$url"
+          echo "Downloading LLVM..."
+          curl -LO https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
 
-          echo "Preparing ./clang directory"
-          rm -rf clang
-          mkdir -p clang
-
-          # Prefer tar if it supports xz; fallback to 7z extraction and handle variable tar names
-          if command -v tar >/dev/null 2>&1 && tar --version 2>&1 | grep -qi xz; then
-            echo "Using tar -xJf to extract into ./clang (stripping top-level directory)"
-            # Strip the top-level directory so contents go directly into ./clang
-            tar -xJf "$dest" -C clang --strip-components=1
-          else
-            echo "tar with xz support not available; using 7z fallback"
-            tmpdir=$(mktemp -d)
-            echo "Extracting $dest into temporary dir $tmpdir"
-            # extract the .xz container into tmpdir (this usually yields a .tar file)
-            7z x "$dest" -y -o"$tmpdir" >/dev/null
-
-            # find a .tar produced or a clang+llvm-* directory inside tmpdir
-            tarfile=$(find "$tmpdir" -maxdepth 1 -type f -name "*.tar" -print -quit || true)
-            if [ -n "$tarfile" ]; then
-              echo "Found intermediate tarfile: $tarfile — extracting into $tmpdir"
-              7z x "$tarfile" -y -o"$tmpdir" >/dev/null
-            fi
-
-            # locate the extracted clang+llvm top-level directory (could be directly under tmpdir)
-            extracted_topdir=$(find "$tmpdir" -maxdepth 1 -type d -name "clang+llvm-*" -print -quit || true)
-
-            if [ -n "$extracted_topdir" ]; then
-              echo "Moving contents of $extracted_topdir into ./clang"
-              # move contents (not the top-level dir itself) into ./clang
-              mv "$extracted_topdir"/* clang/
-            else
-              # maybe 7z already extracted files directly (no wrapping dir) -> move all into clang
-              echo "No single top-level clang+llvm-* dir found; moving all files from $tmpdir into ./clang"
-              mv "$tmpdir"/* clang/ || true
-            fi
-
-            # cleanup
-            rm -rf "$tmpdir"
-          fi
-
-          # final sanity check
-          if [ ! -d clang/bin ]; then
-            echo "ERROR: clang/bin not found after extraction"
-            ls -la clang || true
-            exit 2
-          fi
-
-          clangBin="$(pwd)/clang/bin"
-          #echo "LLVM bin path: $clangBin"
-          #echo "Adding $clangBin to PATH for this job"
-          #echo "PATH=$clangBin:$PATH" >> $GITHUB_ENV
-
-      - name: Show clang-cl version
+      - name: Extract LLVM
         shell: bash
         run: |
-          command -v clang-cl || true
-          clang-cl --version || true
+          echo "Extracting LLVM..."
+          tar -xf clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
+          
+          mv clang+llvm-21.1.8-x86_64-pc-windows-msvc llvm
 
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-
-      - name: Configure with CMake (Visual Studio generator + ClangCL toolset)
+      - name: Configure with CMake
         shell: bash
         run: |
-          NINJA_PATH="$(command -v ninja || true)"
-          if [ -z "$NINJA_PATH" ]; then
-            echo "ninja not found on PATH"
-            exit 1
-          fi
-          echo "Using ninja at: $NINJA_PATH"
-          cmake -S . -B build -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$(pwd)/clang/bin/clang.exe -DCMAKE_CXX_COMPILER=$(pwd)/clang/bin/clang++.exe -DCMAKE_MAKE_PROGRAM=$NINJA_PATH
+          root=$PWD
+          cd "test_clang-cl"
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -S .. -DCMAKE_INSTALL_PREFIX:PATH=../install -DCMAKE_C_COMPILER="$root/llvm/bin/clang.exe" -DCMAKE_CXX_COMPILER="$root/llvm/bin/clang++.exe" -DCMAKE_CXX_SCAN_FOR_MODULES=1
 
       - name: Build
         shell: bash
         run: |
-          cmake --build build --config Release
+          cd "test_clang-cl"
+          cmake --build .
 
       - name: Run executable (Release)
         shell: bash
         run: |
+          cd "test_clang-cl"
           ./build/Release/sample.exe
