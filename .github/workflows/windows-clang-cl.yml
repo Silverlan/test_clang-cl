@@ -14,8 +14,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: CMake Action
-        uses: threeal/cmake-action@v2.1.0
+      - name: actions-setup-cmake
+        uses: jwlawson/actions-setup-cmake@v2.0.2
 
       - name: Download LLVM
         shell: bash
